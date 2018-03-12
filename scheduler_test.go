@@ -107,7 +107,7 @@ func TestDatabaseOnce(t *testing.T) {
 		Password: "test",
 		// LogDB:    true,
 	}
-	now := time.Now().Add(5 * time.Second)
+	now := time.Now()
 	for i := 0; i < 10; i++ {
 		s := schedule.New(&config)
 		s.Add("once").Once().Starting(now).Do(test)
@@ -116,7 +116,7 @@ func TestDatabaseOnce(t *testing.T) {
 	}
 
 	// wait 10 seconds to collect the output
-	<-time.NewTimer(10 * time.Second).C
+	<-time.NewTimer(1 * time.Second).C
 	for _, s := range ss {
 		s.Stop()
 	}

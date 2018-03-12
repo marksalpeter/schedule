@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-// Job represents a task that is queued on the system at a certian time
+// Job represents a task that is queued on the system at a certain time
 type Job interface {
 	// Name is the name of the job. It is unique to the scheduler that it is added to
 	Name() string

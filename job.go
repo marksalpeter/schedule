@@ -120,7 +120,6 @@ type job struct {
 	Hour           int
 	Minute         int
 	Second         int
-	JobDuration    time.Duration
 	StartAt        time.Time
 	LastRunAt      time.Time
 	NextRunAt      time.Time

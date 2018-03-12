@@ -201,7 +201,6 @@ func (s *scheduler) add(j *job) error {
 	var dbJ job
 	if err := tx.Raw(fmt.Sprintf("select * from `%s` where `job_name` = \"%s\" for update", s.name, j.JobName)).Scan(&dbJ).Error; err == gorm.ErrRecordNotFound {
 		// create a new job in the database
-		log.Println("CREATE")
 		if err := tx.Create(j).Error; err != nil {
 			if err := tx.Rollback().Error; err != nil {
 				log.Println(err)

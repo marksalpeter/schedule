@@ -1,5 +1,6 @@
 ## schedule: A Golang Job Scheduling Package.
 [![GoDoc](https://godoc.org/github.com/golang/gddo?status.svg)](http://godoc.org/github.com/marksalpeter/schedule)
++[![Go Report Card](https://goreportcard.com/badge/github.com/marksalpeter/schedule)](https://goreportcard.com/report/github.com/marksalpeter/schedule)
 
 schedule is a Golang job scheduling package which lets you run Go functions periodically at pre-determined interval using a simple, human-friendly syntax.
 

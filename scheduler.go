@@ -5,15 +5,6 @@
 // Schedule is inspired by the Ruby module [clockwork](<https://github.com/tomykaira/clockwork>) and Python job scheduling package [schedule](<https://github.com/dbader/schedule>).
 // This package has been heavily inspired by the good, but rather buggy [goCron](https://github.com/jasonlvhit/gocron) package.
 //
-// Roadmap
-//
-// Schedule is in beta, but the api is very unlikely to change. Here is what is needed for a version 1
-// - [ ] set up vendor
-// - [ ] tests for the non db synchronized local version
-// - [ ] test for database synchronicity
-// - [ ] examples for godoc
-// - [ ] examples in README.md
-//
 package schedule
 
 import (
@@ -38,7 +29,7 @@ type Scheduler interface {
 	Add(name string) Amount
 
 	// Start starts the scheduler
-	Start() <-chan struct{}
+	Start()
 
 	// Stop stops the scheduler
 	Stop()
@@ -69,6 +60,9 @@ type Config struct {
 
 	// Password is the password of the mysql user
 	Password string
+
+	// LogDB when set to true, all sql transactions will be logged
+	LogDB bool
 }
 
 // New creates a new `Scheduler`
@@ -80,8 +74,14 @@ func New(cfg *Config) Scheduler {
 	// open the database
 	if len(cfg.Database) > 0 {
 		db, err := gorm.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s)/%s?charset=utf8&parseTime=True&loc=Local", cfg.Username, cfg.Password, cfg.Instance, cfg.Database))
-		db.SingularTable(true)
 		if err != nil {
+			panic(err)
+		}
+		db.SingularTable(true)
+		db.LogMode(cfg.LogDB)
+		if err := db.AutoMigrate(&job{
+			scheduler: &s,
+		}).Error; err != nil {
 			panic(err)
 		}
 		s.db = db
@@ -113,6 +113,7 @@ type scheduler struct {
 	jobs []Job
 	db   *gorm.DB
 	quit chan struct{}
+	done chan struct{}
 }
 
 // Name is the unique name of the scheduler. Note: any scheduler with the same name will reference the same table name for synchronicity purposes
@@ -135,7 +136,7 @@ func (s *scheduler) Add(name string) Amount {
 }
 
 // Start starts the scheduler
-func (s *scheduler) Start() <-chan struct{} {
+func (s *scheduler) Start() {
 	// stop the ticker
 	if s.quit != nil {
 		s.Stop()
@@ -143,9 +144,11 @@ func (s *scheduler) Start() <-chan struct{} {
 
 	// start the ticker
 	s.quit = make(chan struct{})
-	done := make(chan struct{})
-	go func(s *scheduler, done chan<- struct{}) {
+	s.done = make(chan struct{})
+	started := make(chan struct{})
+	go func(s *scheduler, started chan struct{}) {
 		ticker := time.NewTicker(time.Second)
+		close(started)
 		for {
 			select {
 			case t := <-ticker.C:
@@ -155,13 +158,12 @@ func (s *scheduler) Start() <-chan struct{} {
 				break
 			case <-s.quit:
 				ticker.Stop()
-				close(done)
+				close(s.done)
 				return
 			}
 		}
-	}(s, done)
-
-	return done
+	}(s, started)
+	<-started
 }
 
 // Stop stops the scheduler
@@ -170,7 +172,9 @@ func (s *scheduler) Stop() {
 		return
 	}
 	close(s.quit)
+	<-s.done
 	s.quit = nil
+	s.done = nil
 }
 
 // add is used by the job to add itsself to the scheduler after it is done being built (ie `Do` is called).
@@ -194,8 +198,9 @@ func (s *scheduler) add(j *job) error {
 
 	// select the job from the database
 	tx := s.db.Begin()
-	if err := tx.Raw("select * for update where name = ?", j.Name).Scan(&j).Error; err == gorm.ErrRecordNotFound {
+	if err := tx.Raw(fmt.Sprintf("select * from `%s` where `job_name` = \"%s\" for update", s.name, j.JobName)).Scan(&j).Error; err == gorm.ErrRecordNotFound {
 		// create a new job in the database
+		log.Println("CREATE")
 		if err := tx.Create(j).Error; err != nil {
 			if err := tx.Rollback().Error; err != nil {
 				log.Println(err)
@@ -204,15 +209,15 @@ func (s *scheduler) add(j *job) error {
 			log.Println(err)
 			return nil
 		}
-		return nil
 	} else if err != nil {
-		// we could not find the data in the database and we could not create it
+		// catasriphic server error
 		if err := tx.Rollback().Error; err != nil {
 			return err
 		}
 		return err
 	}
 	// add the entry to the database
+	log.Println("COMMIT")
 	if err := tx.Commit().Error; err != nil {
 		if err := tx.Rollback().Error; err != nil {
 			log.Println(err)
@@ -230,7 +235,7 @@ func (s *scheduler) update(j *job) error {
 	}
 	var dbJ job
 	tx := s.db.Begin()
-	if err := tx.Raw("select * for update where name = ?", j.Name).Scan(&dbJ).Error; err != nil {
+	if err := tx.Raw(fmt.Sprintf("select * from `%s` where `job_name` = \"%s\" for update", s.name, j.JobName)).Scan(&dbJ).Error; err != nil {
 		if err := tx.Rollback().Error; err != nil {
 			return err
 		}

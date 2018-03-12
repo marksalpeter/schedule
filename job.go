@@ -1,6 +1,7 @@
 package schedule
 
 import (
+	"database/sql/driver"
 	"fmt"
 	"time"
 )
@@ -54,12 +55,12 @@ type Day interface {
 	On(day int) Time
 }
 
-// Time sets the time of dat
+// Time sets the time that the job will execute
 type Time interface {
 	At(hours, minutes, seconds int) Starting
 }
 
-// Starting defines when we start counting
+// Starting set the time we start counting
 type Starting interface {
 	Starting(time.Time) Task
 }
@@ -98,12 +99,23 @@ const (
 	Seconds = IntervalType("seconds")
 )
 
+// Scan implements `sql.Scanner`
+func (it *IntervalType) Scan(value interface{}) error {
+	*it = IntervalType(value.([]byte))
+	return nil
+}
+
+// Value implements the `driver.Valuer` interface
+func (it IntervalType) Value() (driver.Value, error) {
+	return string(it), nil
+}
+
 // job implements `Job`, `Interval`, `Increment`, `Month`, `Day`, `Time`, `Starting`, and `Task` interfaces
 type job struct {
 	JobName        string `sql:"index"`
 	IntervalAmount int
 	IntervalType   IntervalType
-	Month          time.Month
+	Month          int
 	Day            int
 	Hour           int
 	Minute         int
@@ -202,7 +214,7 @@ func (j *job) Seconds() Starting {
 }
 
 func (j *job) In(month time.Month) Day {
-	j.Month = month
+	j.Month = int(month)
 	return j
 }
 
@@ -250,7 +262,7 @@ func (j *job) execute(now time.Time) bool {
 func (j *job) caclulateNextRunAt(now time.Time) {
 	switch j.IntervalType {
 	case Years:
-		j.NextRunAt = time.Date(j.StartAt.Year(), j.Month, j.Day, j.Hour, j.Minute, j.Second, j.StartAt.Nanosecond(), j.StartAt.Location())
+		j.NextRunAt = time.Date(j.StartAt.Year(), time.Month(j.Month), j.Day, j.Hour, j.Minute, j.Second, j.StartAt.Nanosecond(), j.StartAt.Location())
 		j.NextRunAt = j.NextRunAt.AddDate(j.IntervalAmount-1, 0, 0)
 		for j.NextRunAt.Before(now) {
 			j.NextRunAt = j.NextRunAt.AddDate(j.IntervalAmount, 0, 0)

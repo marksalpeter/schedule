@@ -88,3 +88,39 @@ func TestDatabaseSeconds(t *testing.T) {
 		1, 2, 5,
 	}, amounts, "the seconds are in the correct order")
 }
+
+func TestDatabaseOnce(t *testing.T) {
+
+	// create our test function and output collection
+	var amounts []int
+	test := func(j schedule.Job, now time.Time) {
+		amounts = append(amounts, j.Amount())
+	}
+
+	// create 10 competing test schedulers
+	var ss []schedule.Scheduler
+	config := schedule.Config{
+		Name:     "second-test-scheduler",
+		Database: "test",
+		Instance: "127.0.0.1:3306",
+		Username: "test",
+		Password: "test",
+		// LogDB:    true,
+	}
+	now := time.Now().Add(5 * time.Second)
+	for i := 0; i < 10; i++ {
+		s := schedule.New(&config)
+		s.Add("once").Once().Starting(now).Do(test)
+		s.Start()
+		ss = append(ss, s)
+	}
+
+	// wait 10 seconds to collect the output
+	<-time.NewTimer(10 * time.Second).C
+	for _, s := range ss {
+		s.Stop()
+	}
+	assert.New(t).Equal([]int{
+		0,
+	}, amounts, "the seconds are in the correct order")
+}

@@ -247,7 +247,7 @@ func (s *scheduler) update(j *job) error {
 		return err
 	}
 	// check to see if another instance using the same database aready performed this execution
-	if dbJ.NextRunAt.After(j.NextRunAt) || dbJ.NextRunAt.Equal(j.NextRunAt) {
+	if (dbJ.NextRunAt.After(j.NextRunAt) || dbJ.NextRunAt.Equal(j.NextRunAt)) && (dbJ.LastRunAt.After(j.LastRunAt) || dbJ.LastRunAt.Equal(j.LastRunAt)) {
 		if err := tx.Rollback().Error; err != nil {
 			return err
 		}

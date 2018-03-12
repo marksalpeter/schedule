@@ -247,7 +247,7 @@ func (j *job) Do(do func(Job, time.Time)) error {
 func (j *job) execute(now time.Time) bool {
 	if j.NextRunAt.After(now) {
 		return false
-	} else if j.IntervalType == Once && j.NextRunAt.Sub(now) > time.Second {
+	} else if j.IntervalType == Once && (now.Sub(j.NextRunAt) > time.Second || now.Sub(j.NextRunAt) < 0) {
 		return false
 	}
 	j.LastRunAt = j.NextRunAt

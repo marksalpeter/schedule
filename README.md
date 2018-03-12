@@ -9,6 +9,44 @@ schedule is inspired by the Ruby module [clockwork](<https://github.com/tomykair
 
 This package has been heavily inspired by the good, but rather buggy [goCron](https://github.com/jasonlvhit/gocron) package
 
+See also this two great articles:
+* [Rethinking Cron](http://adam.herokuapp.com/past/2010/4/13/rethinking_cron/)
+* [Replace Cron with Clockwork](http://adam.herokuapp.com/past/2010/6/30/replace_cron_with_clockwork/)
+
+Back to this package, you could just use this simple API as below, to run a cron scheduler.
+
+``` go
+package main
+
+import (
+	"fmt"
+	"github.com/marksalpeter/schedule"
+)
+
+func task(j Job, _ time.Time) {
+	fmt.Printf("I run every %s %s\n", j.Amount(), j.Interval())
+}
+
+func main() {
+
+	// add an example for every task
+	now := time.Now()
+	schedule.Add("once-task").Once().Starting(now).Do(task)
+	schedule.Add("second-task").Every(1).Seconds().Starting(now).Do(task)
+	schedule.Add("minute-task").Every(1).Minutes().Starting(now).Do(task)
+	schedule.Add("hour-task").Every(1).Hours().Starting(now).Do(task)
+	schedule.Add("day-task").Every(1).Days().At(now.Hours(), now.Minutes(), now.Seconds()).Starting(now).Do(task)
+	schedule.Add("week-task").Every(1).Weeks().On(int(now.Weekday())).At(now.Hours(), now.Minutes(), now.Seconds()).Starting(now).Do(task)
+	schedule.Add("month-task").Every(1).Months().In(now.Month()).On(now.Day()).At(now.Hours(), now.Minutes(), now.Seconds()).Starting(now).Do(task)
+	schedule.Add("year-task").Every(1).Years().In(now.Month()).On(now.Day()).At(now.Hours(), now.Minutes(), now.Seconds()).Starting(now).Do(task)
+
+	// you can see all of the jobs in the scheduler here
+	fmt.Printf("%+v\n", schedule.List())
+
+	select{}
+}
+```
+
 ## Roadmap
 
 schedule is in beta, but the api is very unlikely to change. here is what is needed fully releasable version 1
@@ -17,7 +55,8 @@ schedule is in beta, but the api is very unlikely to change. here is what is nee
 - [x] test for database synchronicity
 - [x] bug fix for database synchronicity
 - [ ] examples for godoc
-- [ ] examples in README.md
+- [x] basic example in README.md
+- [ ] database example in README.md
 - [ ] set up vendor
 
 

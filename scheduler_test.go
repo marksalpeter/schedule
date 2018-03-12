@@ -71,7 +71,7 @@ func TestDatabaseSeconds(t *testing.T) {
 	}
 
 	// wait 10 seconds to collect the output
-	<-time.NewTimer(11 * time.Second).C
+	<-time.NewTimer(10 * time.Second).C
 	for _, s := range ss {
 		s.Stop()
 	}

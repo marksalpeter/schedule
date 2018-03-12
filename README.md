@@ -15,7 +15,7 @@ schedule is in beta, but the api is very unlikely to change. here is what is nee
 
 - [ ] finish writing tests for all functionality of the non db synchronized local version
 - [x] test for database synchronicity
-- [ ] bug fix for database synchronicity
+- [x] bug fix for database synchronicity
 - [ ] examples for godoc
 - [ ] examples in README.md
 - [ ] set up vendor

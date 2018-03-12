@@ -198,7 +198,8 @@ func (s *scheduler) add(j *job) error {
 
 	// select the job from the database
 	tx := s.db.Begin()
-	if err := tx.Raw(fmt.Sprintf("select * from `%s` where `job_name` = \"%s\" for update", s.name, j.JobName)).Scan(&j).Error; err == gorm.ErrRecordNotFound {
+	var dbJ job
+	if err := tx.Raw(fmt.Sprintf("select * from `%s` where `job_name` = \"%s\" for update", s.name, j.JobName)).Scan(&dbJ).Error; err == gorm.ErrRecordNotFound {
 		// create a new job in the database
 		log.Println("CREATE")
 		if err := tx.Create(j).Error; err != nil {
@@ -209,18 +210,23 @@ func (s *scheduler) add(j *job) error {
 			log.Println(err)
 			return nil
 		}
+
 	} else if err != nil {
 		// catasriphic server error
 		if err := tx.Rollback().Error; err != nil {
 			return err
 		}
 		return err
+	} else if err := tx.Save(j).Error; err != nil {
+		if err := tx.Rollback().Error; err != nil {
+			return err
+		}
+		return err
 	}
-	// add the entry to the database
-	log.Println("COMMIT")
+	// commit the change to the db
 	if err := tx.Commit().Error; err != nil {
 		if err := tx.Rollback().Error; err != nil {
-			log.Println(err)
+			return err
 		}
 		log.Println(err)
 	}
@@ -242,7 +248,7 @@ func (s *scheduler) update(j *job) error {
 		return err
 	}
 	// check to see if another instance using the same database aready performed this execution
-	if dbJ.NextRunAt.After(j.NextRunAt) || dbJ.NextRunAt.After(j.NextRunAt) {
+	if dbJ.NextRunAt.After(j.NextRunAt) || dbJ.NextRunAt.Equal(j.NextRunAt) {
 		if err := tx.Rollback().Error; err != nil {
 			return err
 		}

@@ -112,7 +112,7 @@ func (it IntervalType) Value() (driver.Value, error) {
 
 // job implements `Job`, `Interval`, `Increment`, `Month`, `Day`, `Time`, `Starting`, and `Task` interfaces
 type job struct {
-	JobName        string `sql:"index"`
+	JobName        string `gorm:"primary_key"`
 	IntervalAmount int
 	IntervalType   IntervalType
 	Month          int

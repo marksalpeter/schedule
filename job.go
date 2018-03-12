@@ -247,6 +247,8 @@ func (j *job) Do(do func(Job, time.Time)) error {
 func (j *job) execute(now time.Time) bool {
 	if j.NextRunAt.After(now) {
 		return false
+	} else if j.IntervalType == Once && j.NextRunAt.Sub(now) > time.Second {
+		return false
 	}
 	j.LastRunAt = j.NextRunAt
 	j.caclulateNextRunAt(now)
@@ -301,6 +303,8 @@ func (j *job) caclulateNextRunAt(now time.Time) {
 		for j.NextRunAt.Before(now) {
 			j.NextRunAt = j.NextRunAt.Add(time.Second * time.Duration(j.IntervalAmount))
 		}
+	case Once:
+		j.NextRunAt = j.StartAt
 	default:
 		panic(fmt.Errorf("increment type %s not implemented", j.IntervalType))
 	}
